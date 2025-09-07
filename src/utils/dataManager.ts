@@ -1,4 +1,5 @@
 // Data management utilities for cleaning and downloading data
+import { AppDataSchema, safeParseJSON, sanitizeString, sanitizeFileName } from './validation';
 
 export interface AppData {
   apiKeys: {
@@ -10,32 +11,77 @@ export interface AppData {
   timestamp: string;
 }
 
+export interface ExportOptions {
+  includeApiKeys?: boolean;
+  includeAnalysisResults?: boolean;
+  includeNotes?: boolean;
+}
+
 export class DataManager {
   
-  // Get all app data
+  // Get all app data with validation
   static getAllData(): AppData {
-    return {
-      apiKeys: {
-        hybridAnalysis: localStorage.getItem('hybridAnalysisKey') || '',
-        virusTotal: localStorage.getItem('virusTotalKey') || ''
-      },
-      analysisResults: JSON.parse(localStorage.getItem('analysisResults') || '[]'),
-      userNotes: localStorage.getItem('userNotes') || '',
+    const fallback: AppData = {
+      apiKeys: { hybridAnalysis: '', virusTotal: '' },
+      analysisResults: [],
+      userNotes: '',
       timestamp: new Date().toISOString()
     };
+
+    try {
+      const data = {
+        apiKeys: {
+          hybridAnalysis: localStorage.getItem('hybridAnalysisKey') || '',
+          virusTotal: localStorage.getItem('virusTotalKey') || ''
+        },
+        analysisResults: safeParseJSON(
+          localStorage.getItem('analysisResults') || '[]',
+          AppDataSchema.shape.analysisResults,
+          []
+        ),
+        userNotes: sanitizeString(localStorage.getItem('userNotes') || ''),
+        timestamp: new Date().toISOString()
+      };
+      return data;
+    } catch (error) {
+      console.error('Error loading app data:', error);
+      return fallback;
+    }
   }
 
-  // Download data as JSON file
-  static downloadData() {
+  // Download data as JSON file with security options
+  static downloadData(options: ExportOptions = {}) {
     const data = this.getAllData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { 
+    
+    // Create secure export data
+    const exportData: Partial<AppData> = {
+      timestamp: data.timestamp
+    };
+
+    // Only include API keys if explicitly requested (security measure)
+    if (options.includeApiKeys) {
+      exportData.apiKeys = data.apiKeys;
+    }
+
+    // Include analysis results by default unless explicitly excluded
+    if (options.includeAnalysisResults !== false) {
+      exportData.analysisResults = data.analysisResults;
+    }
+
+    // Include notes by default unless explicitly excluded
+    if (options.includeNotes !== false) {
+      exportData.userNotes = data.userNotes;
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
       type: 'application/json' 
     });
     
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    const fileName = sanitizeFileName(`painel-cybersec-backup-${new Date().toISOString().split('T')[0]}.json`);
     a.href = url;
-    a.download = `painel-cybersec-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -59,25 +105,42 @@ export class DataManager {
     });
   }
 
-  // Save analysis result
+  // Save analysis result with validation
   static saveAnalysisResult(result: any) {
-    const results = JSON.parse(localStorage.getItem('analysisResults') || '[]');
-    results.push({
-      ...result,
-      timestamp: new Date().toISOString(),
-      id: Date.now()
-    });
-    localStorage.setItem('analysisResults', JSON.stringify(results));
+    try {
+      const results = safeParseJSON(
+        localStorage.getItem('analysisResults') || '[]',
+        AppDataSchema.shape.analysisResults,
+        []
+      );
+      
+      const sanitizedResult = {
+        ...result,
+        fileName: sanitizeFileName(result.fileName || ''),
+        timestamp: new Date().toISOString(),
+        id: Date.now()
+      };
+      
+      results.push(sanitizedResult);
+      localStorage.setItem('analysisResults', JSON.stringify(results));
+    } catch (error) {
+      console.error('Error saving analysis result:', error);
+    }
   }
 
-  // Get saved analysis results
+  // Get saved analysis results with validation
   static getSavedResults() {
-    return JSON.parse(localStorage.getItem('analysisResults') || '[]');
+    return safeParseJSON(
+      localStorage.getItem('analysisResults') || '[]',
+      AppDataSchema.shape.analysisResults,
+      []
+    );
   }
 
-  // Save user notes
+  // Save user notes with sanitization
   static saveNotes(notes: string) {
-    localStorage.setItem('userNotes', notes);
+    const sanitizedNotes = sanitizeString(notes);
+    localStorage.setItem('userNotes', sanitizedNotes);
   }
 
   // Get user notes

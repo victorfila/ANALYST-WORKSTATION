@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import ApiKeyManager from "@/components/analysis/ApiKeyManager";
 import { analysisService } from "@/services/analysisService";
-import { DataManager } from "@/utils/dataManager";
+import { DataManager, ExportOptions } from "@/utils/dataManager";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface AnalysisResult {
@@ -146,11 +146,19 @@ export default function SalaAnalise() {
     return { level: "Alto", color: "text-neon-red" };
   };
 
-  const handleDownloadData = () => {
-    DataManager.downloadData();
+  const handleDownloadData = (includeApiKeys: boolean = false) => {
+    const options: ExportOptions = {
+      includeApiKeys,
+      includeAnalysisResults: true,
+      includeNotes: true,
+    };
+    
+    DataManager.downloadData(options);
     toast({
       title: "Download Iniciado",
-      description: "Os dados estão sendo baixados como arquivo JSON.",
+      description: includeApiKeys 
+        ? "Dados exportados incluindo API keys (cuidado com segurança!)" 
+        : "Dados exportados sem API keys (recomendado por segurança).",
     });
   };
 
@@ -192,15 +200,55 @@ export default function SalaAnalise() {
               <p className="text-muted-foreground">Ambiente seguro para análise de ameaças</p>
             </div>
             <div className="flex items-center space-x-2">
-              <Button
-                onClick={handleDownloadData}
-                variant="outline"
-                size="sm"
-                className="border-border text-neon-cyan"
-              >
-                <Database className="w-4 h-4 mr-2" />
-                Baixar Dados
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-border text-neon-cyan"
+                  >
+                    <Database className="w-4 h-4 mr-2" />
+                    Baixar Dados
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-card border-border">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-neon-cyan">Opções de Exportação</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      <div className="space-y-3">
+                        <p>Escolha como exportar seus dados:</p>
+                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <Shield className="w-4 h-4 text-neon-orange" />
+                            <span className="text-sm text-neon-orange font-medium">Aviso de Segurança</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Por segurança, as API keys não são incluídas por padrão. 
+                            Só inclua se necessário e mantenha o arquivo seguro.
+                          </p>
+                        </div>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-col space-y-2">
+                    <div className="flex space-x-2 w-full">
+                      <AlertDialogCancel className="border-border flex-1">Cancelar</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => handleDownloadData(false)}
+                        className="bg-primary hover:bg-primary/80 flex-1"
+                      >
+                        Exportar Seguro (sem API keys)
+                      </AlertDialogAction>
+                    </div>
+                    <AlertDialogAction 
+                      onClick={() => handleDownloadData(true)}
+                      className="bg-orange-500/20 border border-orange-500/50 text-neon-orange hover:bg-orange-500/30 w-full"
+                    >
+                      Exportar Completo (com API keys)
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               
               <AlertDialog>
                 <AlertDialogTrigger asChild>
