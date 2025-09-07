@@ -2,41 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Cyberpunk Security Dashboard Design System */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Cyberpunk Dark Theme */
+    --background: 220 27% 4%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 25% 6%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 25% 6%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 180 100% 50%;
+    --primary-foreground: 220 27% 4%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 20% 12%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 20% 10%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 280 100% 70%;
+    --accent-foreground: 220 27% 4%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 120 100% 50%;
+    --success-foreground: 220 27% 4%;
 
-    --radius: 0.5rem;
+    --warning: 35 100% 55%;
+    --warning-foreground: 220 27% 4%;
+
+    --border: 220 20% 15%;
+    --input: 220 20% 12%;
+    --ring: 180 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Cyberpunk Neon Colors */
+    --neon-cyan: 180 100% 50%;
+    --neon-purple: 280 100% 70%;
+    --neon-orange: 35 100% 55%;
+    --neon-green: 120 100% 50%;
+    --neon-red: 0 75% 60%;
+
+    /* Gradients */
+    --gradient-cyber: linear-gradient(135deg, hsl(var(--neon-cyan) / 0.8), hsl(var(--neon-purple) / 0.8));
+    --gradient-danger: linear-gradient(135deg, hsl(var(--neon-red) / 0.8), hsl(var(--neon-orange) / 0.8));
+    --gradient-success: linear-gradient(135deg, hsl(var(--neon-green) / 0.8), hsl(var(--neon-cyan) / 0.8));
+    
+    /* Glows */
+    --glow-cyan: 0 0 20px hsl(var(--neon-cyan) / 0.5);
+    --glow-purple: 0 0 20px hsl(var(--neon-purple) / 0.5);
+    --glow-orange: 0 0 20px hsl(var(--neon-orange) / 0.5);
+    --glow-red: 0 0 20px hsl(var(--neon-red) / 0.5);
+
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +126,75 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+}
+
+@layer components {
+  /* Cyberpunk Card Variants */
+  .card-cyber {
+    @apply bg-card border border-border backdrop-blur-sm;
+    background: linear-gradient(135deg, hsl(var(--card) / 0.8), hsl(var(--card) / 0.4));
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.1);
+  }
+
+  .card-danger {
+    @apply border-red-500/50;
+    box-shadow: var(--glow-red);
+  }
+
+  .card-success {
+    @apply border-green-500/50;
+    box-shadow: 0 0 20px hsl(var(--neon-green) / 0.3);
+  }
+
+  .card-warning {
+    @apply border-orange-500/50;
+    box-shadow: var(--glow-orange);
+  }
+
+  /* Neon Text Effects */
+  .text-neon-cyan {
+    color: hsl(var(--neon-cyan));
+    text-shadow: 0 0 10px hsl(var(--neon-cyan) / 0.8);
+  }
+
+  .text-neon-purple {
+    color: hsl(var(--neon-purple));
+    text-shadow: 0 0 10px hsl(var(--neon-purple) / 0.8);
+  }
+
+  .text-neon-orange {
+    color: hsl(var(--neon-orange));
+    text-shadow: 0 0 10px hsl(var(--neon-orange) / 0.8);
+  }
+
+  .text-neon-green {
+    color: hsl(var(--neon-green));
+    text-shadow: 0 0 10px hsl(var(--neon-green) / 0.8);
+  }
+
+  /* Animated Background */
+  .bg-cyber-grid {
+    background-image: 
+      linear-gradient(hsl(var(--primary) / 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: grid-move 20s linear infinite;
+  }
+
+  @keyframes grid-move {
+    0% { background-position: 0 0; }
+    100% { background-position: 50px 50px; }
+  }
+
+  /* Hover Effects */
+  .hover-glow {
+    transition: all 0.3s ease;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 25px hsl(var(--primary) / 0.6);
+    transform: translateY(-2px);
   }
 }
