@@ -1,28 +1,135 @@
-import { useState } from "react";
-import { Search, Play, Pause, Download, Upload, FileText, Zap } from "lucide-react";
+import { useState, useRef } from "react";
+import { Search, Play, Pause, Download, Upload, FileText, Zap, AlertTriangle, ExternalLink, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import ApiKeyManager from "@/components/analysis/ApiKeyManager";
+import { analysisService } from "@/services/analysisService";
+
+interface AnalysisResult {
+  hybridAnalysis?: any;
+  virusTotal?: any;
+  fileName: string;
+  fileSize: number;
+  hash?: string;
+}
 
 export default function SalaAnalise() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [apiKeysConfigured, setApiKeysConfigured] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const startAnalysis = () => {
+  const handleApiKeysUpdate = (keys: { hybridAnalysis: string; virusTotal: string }) => {
+    analysisService.setApiKeys(keys.hybridAnalysis, keys.virusTotal);
+    setApiKeysConfigured(!!keys.hybridAnalysis || !!keys.virusTotal);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setAnalysisResult(null);
+      toast({
+        title: "Arquivo Selecionado",
+        description: `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+      });
+    }
+  };
+
+  const startAnalysis = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "Erro",
+        description: "Selecione um arquivo para análise",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!apiKeysConfigured) {
+      toast({
+        title: "Erro", 
+        description: "Configure pelo menos uma API key para continuar",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     setProgress(0);
-    
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsAnalyzing(false);
-          return 100;
-        }
-        return prev + 10;
+
+    try {
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
+
+      const results: any = {
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size
+      };
+
+      // Submit to both APIs
+      try {
+        const hybridSubmission = await analysisService.submitToHybridAnalysis(selectedFile);
+        results.hybridAnalysis = hybridSubmission;
+        toast({
+          title: "Hybrid Analysis",
+          description: "Arquivo enviado com sucesso!",
+        });
+      } catch (error) {
+        console.warn('Hybrid Analysis failed:', error);
+      }
+
+      try {
+        const vtSubmission = await analysisService.submitToVirusTotal(selectedFile);
+        results.virusTotal = vtSubmission;
+        toast({
+          title: "VirusTotal", 
+          description: "Arquivo enviado com sucesso!",
+        });
+      } catch (error) {
+        console.warn('VirusTotal failed:', error);
+      }
+
+      clearInterval(progressInterval);
+      setProgress(100);
+      setAnalysisResult(results);
+      
+      toast({
+        title: "Análise Iniciada",
+        description: "O arquivo foi enviado para análise. Os resultados aparecerão em breve.",
       });
-    }, 500);
+
+    } catch (error: any) {
+      toast({
+        title: "Erro na Análise",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const getThreatLevel = (score?: number) => {
+    if (!score) return { level: "Desconhecido", color: "text-muted-foreground" };
+    if (score <= 30) return { level: "Baixo", color: "text-neon-green" };
+    if (score <= 70) return { level: "Médio", color: "text-neon-orange" };
+    return { level: "Alto", color: "text-neon-red" };
   };
 
   return (
@@ -30,8 +137,13 @@ export default function SalaAnalise() {
       <div className="container mx-auto p-6">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-neon-purple mb-2">Sala de Análise</h1>
-          <p className="text-muted-foreground">Ambiente seguro para análise de ameaças</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-neon-purple mb-2">Sala de Análise</h1>
+              <p className="text-muted-foreground">Ambiente seguro para análise de ameaças</p>
+            </div>
+            <ApiKeyManager onKeysUpdate={handleApiKeysUpdate} />
+          </div>
         </div>
 
         {/* Analysis Controls */}
@@ -40,16 +152,35 @@ export default function SalaAnalise() {
           <div className="card-cyber p-6 rounded-lg">
             <h3 className="text-lg font-semibold text-neon-orange mb-4">Carregar Amostra</h3>
             <div className="space-y-4">
-              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-2">Arraste um arquivo ou clique para selecionar</p>
-                <Button variant="outline" className="border-border">
+                {selectedFile ? (
+                  <div>
+                    <p className="text-foreground mb-2">{selectedFile.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground mb-2">Arraste um arquivo ou clique para selecionar</p>
+                )}
+                <Button variant="outline" className="border-border mt-2">
                   Selecionar Arquivo
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept=".exe,.dll,.zip,.rar,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Hash MD5</label>
+                  <label className="block text-sm font-medium mb-2">Hash MD5/SHA256</label>
                   <Input placeholder="Opcional" className="bg-secondary border-border" />
                 </div>
                 <div>
@@ -77,7 +208,7 @@ export default function SalaAnalise() {
               <div className="flex items-center space-x-4">
                 <Button 
                   onClick={startAnalysis}
-                  disabled={isAnalyzing}
+                  disabled={isAnalyzing || !selectedFile}
                   className="bg-primary hover:bg-primary/80"
                 >
                   {isAnalyzing ? (
@@ -93,11 +224,20 @@ export default function SalaAnalise() {
                   )}
                 </Button>
                 
-                <Button variant="outline" className="border-border">
+                <Button variant="outline" className="border-border" disabled={!analysisResult}>
                   <Download className="w-4 h-4 mr-2" />
                   Relatório
                 </Button>
               </div>
+
+              {!apiKeysConfigured && (
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-neon-orange" />
+                    <span className="text-sm text-neon-orange">Configure as API keys para iniciar a análise</span>
+                  </div>
+                </div>
+              )}
 
               {isAnalyzing && (
                 <div className="mt-4 p-3 bg-secondary/50 rounded-lg">
@@ -106,11 +246,9 @@ export default function SalaAnalise() {
                     <span className="text-sm font-medium">Análise em Andamento</span>
                   </div>
                   <div className="text-xs text-muted-foreground space-y-1">
-                    <div>✓ Verificação de assinatura</div>
-                    <div>✓ Análise estática</div>
-                    <div className="text-neon-cyan">→ Análise comportamental</div>
-                    <div className="opacity-50">- Análise de rede</div>
-                    <div className="opacity-50">- Geração de relatório</div>
+                    <div>✓ Upload para Hybrid Analysis</div>
+                    <div>✓ Upload para VirusTotal</div>
+                    <div className="text-neon-cyan">→ Aguardando resultados</div>
                   </div>
                 </div>
               )}
@@ -119,6 +257,59 @@ export default function SalaAnalise() {
         </div>
 
         {/* Analysis Results */}
+        {analysisResult && (
+          <div className="card-cyber p-6 rounded-lg mb-6">
+            <h3 className="text-lg font-semibold text-neon-cyan mb-4">Resultados da Análise</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Hybrid Analysis Results */}
+              {analysisResult.hybridAnalysis && (
+                <div className="border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-neon-orange">Hybrid Analysis</h4>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Job ID:</span>
+                      <span className="text-sm font-mono">{analysisResult.hybridAnalysis.job_id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">SHA256:</span>
+                      <span className="text-xs font-mono">{analysisResult.hybridAnalysis.sha256?.substring(0, 16)}...</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Status:</span>
+                      <Badge className="bg-orange-500/20 text-neon-orange">Em Análise</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* VirusTotal Results */}
+              {analysisResult.virusTotal && (
+                <div className="border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-neon-green">VirusTotal</h4>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Analysis ID:</span>
+                      <span className="text-xs font-mono">{analysisResult.virusTotal.data?.id?.substring(0, 16)}...</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Status:</span>
+                      <Badge className="bg-green-500/20 text-neon-green">Enviado</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Static Analysis Results (Mock Data) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Static Analysis */}
           <div className="card-cyber p-6 rounded-lg">
