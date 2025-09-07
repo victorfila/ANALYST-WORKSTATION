@@ -83,7 +83,7 @@ export default function ApiKeyManager({ onKeysUpdate }: ApiKeyManagerProps) {
                   type={showKeys ? "text" : "password"}
                   value={keys.hybridAnalysis}
                   onChange={(e) => setKeys(prev => ({ ...prev, hybridAnalysis: e.target.value }))}
-                  placeholder="5zxlp80oa7c4c44e1ftt6vb4600d75b7aq..."
+                  placeholder="Digite sua API key do Hybrid Analysis"
                   className="bg-secondary border-border pr-10"
                 />
                 <Button
@@ -104,7 +104,7 @@ export default function ApiKeyManager({ onKeysUpdate }: ApiKeyManagerProps) {
                 type={showKeys ? "text" : "password"}
                 value={keys.virusTotal}
                 onChange={(e) => setKeys(prev => ({ ...prev, virusTotal: e.target.value }))}
-                placeholder="052a67f3388789577e024f355ddbe3385d27cc..."
+                placeholder="Digite sua API key do VirusTotal"
                 className="bg-secondary border-border"
               />
             </div>
