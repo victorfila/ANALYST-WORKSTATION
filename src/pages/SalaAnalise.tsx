@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Search, Play, Pause, Download, Upload, FileText, Zap, AlertTriangle, ExternalLink, Shield } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Search, Play, Pause, Download, Upload, FileText, Zap, AlertTriangle, ExternalLink, Shield, Trash2, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import ApiKeyManager from "@/components/analysis/ApiKeyManager";
 import { analysisService } from "@/services/analysisService";
+import { DataManager } from "@/utils/dataManager";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface AnalysisResult {
   hybridAnalysis?: any;
@@ -23,8 +25,16 @@ export default function SalaAnalise() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [apiKeysConfigured, setApiKeysConfigured] = useState(false);
+  const [savedResults, setSavedResults] = useState<any[]>([]);
+  const [userNotes, setUserNotes] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Load saved data on component mount
+  useEffect(() => {
+    setSavedResults(DataManager.getSavedResults());
+    setUserNotes(DataManager.getNotes());
+  }, []);
 
   const handleApiKeysUpdate = (keys: { hybridAnalysis: string; virusTotal: string }) => {
     analysisService.setApiKeys(keys.hybridAnalysis, keys.virusTotal);
@@ -109,6 +119,10 @@ export default function SalaAnalise() {
       setProgress(100);
       setAnalysisResult(results);
       
+      // Save analysis result
+      DataManager.saveAnalysisResult(results);
+      setSavedResults(DataManager.getSavedResults());
+      
       toast({
         title: "Análise Iniciada",
         description: "O arquivo foi enviado para análise. Os resultados aparecerão em breve.",
@@ -132,6 +146,41 @@ export default function SalaAnalise() {
     return { level: "Alto", color: "text-neon-red" };
   };
 
+  const handleDownloadData = () => {
+    DataManager.downloadData();
+    toast({
+      title: "Download Iniciado",
+      description: "Os dados estão sendo baixados como arquivo JSON.",
+    });
+  };
+
+  const handleClearAllData = () => {
+    DataManager.clearAllData();
+    
+    // Reset component state
+    setSelectedFile(null);
+    setAnalysisResult(null);
+    setApiKeysConfigured(false);
+    setSavedResults([]);
+    setUserNotes("");
+    setProgress(0);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+    toast({
+      title: "Dados Limpos",
+      description: "Todos os dados foram removidos do sistema. Painel zerado.",
+    });
+  };
+
+  const handleNotesChange = (notes: string) => {
+    setUserNotes(notes);
+    DataManager.saveNotes(notes);
+  };
+
   return (
     <div className="min-h-screen bg-background bg-cyber-grid">
       <div className="container mx-auto p-6">
@@ -142,7 +191,56 @@ export default function SalaAnalise() {
               <h1 className="text-4xl font-bold text-neon-purple mb-2">Sala de Análise</h1>
               <p className="text-muted-foreground">Ambiente seguro para análise de ameaças</p>
             </div>
-            <ApiKeyManager onKeysUpdate={handleApiKeysUpdate} />
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={handleDownloadData}
+                variant="outline"
+                size="sm"
+                className="border-border text-neon-cyan"
+              >
+                <Database className="w-4 h-4 mr-2" />
+                Baixar Dados
+              </Button>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-red-500/50 text-neon-red hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Limpar Tudo
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-card border-border">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-neon-red">Confirmar Limpeza</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá remover permanentemente:
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Todas as API keys salvas</li>
+                        <li>Histórico de análises</li>
+                        <li>Notas e relatórios</li>
+                        <li>Configurações do painel</li>
+                      </ul>
+                      <p className="mt-2 text-neon-orange">Esta ação não pode ser desfeita!</p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleClearAllData}
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      Sim, Limpar Tudo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              
+              <ApiKeyManager onKeysUpdate={handleApiKeysUpdate} />
+            </div>
           </div>
         </div>
 
@@ -383,12 +481,38 @@ export default function SalaAnalise() {
           </div>
         </div>
 
+        {/* Saved Results History */}
+        {savedResults.length > 0 && (
+          <div className="card-cyber p-6 rounded-lg mt-6">
+            <h3 className="text-lg font-semibold text-neon-cyan mb-4">Histórico de Análises ({savedResults.length})</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {savedResults.slice(-5).reverse().map((result, index) => (
+                <div key={result.id || index} className="bg-secondary/30 p-3 rounded border border-border">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">{result.fileName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(result.timestamp).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {(result.fileSize / 1024 / 1024).toFixed(2)} MB
+                    {result.hybridAnalysis && <span className="ml-2 text-neon-orange">HA ✓</span>}
+                    {result.virusTotal && <span className="ml-2 text-neon-green">VT ✓</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Report Section */}
         <div className="card-cyber p-6 rounded-lg mt-6">
           <h3 className="text-lg font-semibold text-neon-purple mb-4">Relatório de Análise</h3>
           <Textarea
             placeholder="Notas e observações da análise..."
             className="min-h-32 bg-secondary border-border resize-none"
+            value={userNotes}
+            onChange={(e) => handleNotesChange(e.target.value)}
           />
           <div className="flex justify-end mt-4 space-x-2">
             <Button variant="outline" className="border-border">
