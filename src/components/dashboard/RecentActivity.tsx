@@ -1,43 +1,47 @@
+import { useEffect, useState } from "react";
 import { ArrowUp, Clock } from "lucide-react";
-
-const recentActivities = [
-  {
-    time: "15:45",
-    action: "Novo caso adicionado",
-    case: "CASE-003: Cheat Russo",
-    type: "new"
-  },
-  {
-    time: "14:28", 
-    action: "Análise concluída",
-    case: "CASE-002: Cheat YouTube 2 - Rhadamanthys",
-    type: "analysis"
-  },
-  {
-    time: "11:30",
-    action: "Caso arquivado", 
-    case: "CASE-001: Cheat YouTube 1 - Sakura",
-    type: "archive"
-  },
-  {
-    time: "Ontem",
-    action: "Mural atualizado",
-    case: "Conexões GitHub hackeado mapeadas",
-    type: "map"
-  }
-];
-
-const getTypeColor = (type: string) => {
-  switch (type) {
-    case "new": return "text-neon-cyan";
-    case "analysis": return "text-neon-purple";
-    case "archive": return "text-muted-foreground";
-    case "map": return "text-neon-green";
-    default: return "text-foreground";
-  }
-};
+import { DataManager } from "@/utils/dataManager";
 
 export default function RecentActivity() {
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    const savedResults = DataManager.getSavedResults();
+    
+    // Convert saved results to activity format
+    const activities = savedResults.slice(-4).reverse().map((result, index) => ({
+      time: new Date(result.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      action: "Análise realizada",
+      case: `${result.fileName}`,
+      type: result.hybridAnalysis && result.virusTotal ? "analysis" : "new"
+    }));
+    
+    setRecentActivities(activities);
+  }, []);
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "new": return "text-neon-cyan";
+      case "analysis": return "text-neon-purple"; 
+      case "archive": return "text-muted-foreground";
+      case "map": return "text-neon-green";
+      default: return "text-foreground";
+    }
+  };
+
+  if (recentActivities.length === 0) {
+    return (
+      <div className="card-cyber p-6 rounded-lg">
+        <h3 className="text-lg font-semibold text-neon-green mb-4">Atividade Recente</h3>
+        <div className="text-center py-8 text-muted-foreground">
+          <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p>Nenhuma atividade recente</p>
+          <p className="text-sm">Execute algumas análises para ver o histórico aqui</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card-cyber p-6 rounded-lg">
       <h3 className="text-lg font-semibold text-neon-green mb-4">Atividade Recente</h3>
