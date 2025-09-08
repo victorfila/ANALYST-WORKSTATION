@@ -90,19 +90,13 @@ export class DataManager {
 
   // Clear all app data
   static clearAllData() {
-    // Clear localStorage
-    localStorage.removeItem('hybridAnalysisKey');
-    localStorage.removeItem('virusTotalKey');
-    localStorage.removeItem('analysisResults');
-    localStorage.removeItem('userNotes');
+    // Clear all localStorage data
+    localStorage.clear();
     
-    // Clear any other stored data
-    const keys = Object.keys(localStorage);
-    keys.forEach(key => {
-      if (key.startsWith('cyber-panel-') || key.includes('analysis') || key.includes('virus')) {
-        localStorage.removeItem(key);
-      }
-    });
+    // Also clear sessionStorage for complete reset
+    sessionStorage.clear();
+    
+    console.log('All data cleared from localStorage and sessionStorage');
   }
 
   // Save analysis result with validation

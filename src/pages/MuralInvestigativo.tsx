@@ -25,6 +25,11 @@ export default function MuralInvestigativo() {
   const [selectedCase, setSelectedCase] = useState("case");
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isAddingNode, setIsAddingNode] = useState(false);
+  const [newNodeLabel, setNewNodeLabel] = useState("");
+  const [newNodeType, setNewNodeType] = useState("info");
+  const [selectedNodeForConnection, setSelectedNodeForConnection] = useState<string | null>(null);
+  const [connectionLabel, setConnectionLabel] = useState("");
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Load real data and generate nodes/connections
@@ -119,6 +124,51 @@ export default function MuralInvestigativo() {
     setConnections(generatedConnections);
   }, []);
 
+  const addNode = () => {
+    if (!newNodeLabel.trim()) return;
+    
+    const newNode: Node = {
+      id: `manual-${Date.now()}`,
+      label: newNodeLabel,
+      type: newNodeType,
+      x: 300 + Math.random() * 200,
+      y: 200 + Math.random() * 200,
+      color: getNodeColor(newNodeType)
+    };
+    
+    setNodes(prev => [...prev, newNode]);
+    setNewNodeLabel("");
+    setIsAddingNode(false);
+  };
+
+  const addConnection = (fromId: string, toId: string) => {
+    if (!connectionLabel.trim()) return;
+    
+    const newConnection: Connection = {
+      from: fromId,
+      to: toId,
+      label: connectionLabel
+    };
+    
+    setConnections(prev => [...prev, newConnection]);
+    setConnectionLabel("");
+    setSelectedNodeForConnection(null);
+  };
+
+  const handleNodeClick = (nodeId: string) => {
+    if (selectedNodeForConnection && selectedNodeForConnection !== nodeId) {
+      addConnection(selectedNodeForConnection, nodeId);
+    } else {
+      setSelectedNodeForConnection(nodeId);
+    }
+  };
+
+  const clearMural = () => {
+    setNodes([]);
+    setConnections([]);
+    setSelectedNodeForConnection(null);
+  };
+
   const getThreatLevel = (result: any) => {
     if (!result.hybridAnalysis && !result.virusTotal) return "Nível 0";
     
@@ -167,12 +217,52 @@ export default function MuralInvestigativo() {
                   <SelectItem value="all">Todos os Casos</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="text-sm text-muted-foreground">Rótulo do nó</div>
-              <Button size="sm" className="bg-primary hover:bg-primary/80">
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Nó
-              </Button>
-              <div className="text-sm text-muted-foreground">Rótulo da conexão</div>
+              {isAddingNode ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={newNodeLabel}
+                    onChange={(e) => setNewNodeLabel(e.target.value)}
+                    placeholder="Nome do nó"
+                    className="px-3 py-1 bg-secondary border border-border rounded text-sm"
+                  />
+                  <select
+                    value={newNodeType}
+                    onChange={(e) => setNewNodeType(e.target.value)}
+                    className="px-2 py-1 bg-secondary border border-border rounded text-sm"
+                  >
+                    <option value="info">Info</option>
+                    <option value="threat">Ameaça</option>
+                    <option value="evidence">Evidência</option>
+                    <option value="malware">Malware</option>
+                  </select>
+                  <Button size="sm" onClick={addNode} className="bg-green-500 hover:bg-green-600">
+                    Criar
+                  </Button>
+                  <Button size="sm" onClick={() => setIsAddingNode(false)} variant="outline">
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button size="sm" onClick={() => setIsAddingNode(true)} className="bg-primary hover:bg-primary/80">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Nó
+                  </Button>
+                  {selectedNodeForConnection && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-muted-foreground">Conectar de: {selectedNodeForConnection}</span>
+                      <input
+                        type="text"
+                        value={connectionLabel}
+                        onChange={(e) => setConnectionLabel(e.target.value)}
+                        placeholder="Rótulo da conexão"
+                        className="px-3 py-1 bg-secondary border border-border rounded text-sm"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             
             <div className="flex items-center space-x-2">
@@ -183,6 +273,9 @@ export default function MuralInvestigativo() {
               <Button size="sm" variant="outline" className="border-border">
                 <Download className="w-4 h-4 mr-2" />
                 Exportar
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearMural} className="border-red-500/50 text-neon-red">
+                Limpar Mural
               </Button>
             </div>
           </div>
@@ -196,7 +289,7 @@ export default function MuralInvestigativo() {
                 <div className="text-6xl text-muted-foreground mb-4">🕸️</div>
                 <h3 className="text-xl font-semibold text-muted-foreground mb-2">Mural Vazio</h3>
                 <p className="text-sm text-muted-foreground mb-4">Execute análises para ver conexões entre ameaças</p>
-                <Button variant="outline" className="border-border">
+                <Button onClick={() => setIsAddingNode(true)} className="bg-primary hover:bg-primary/80">
                   <Plus className="w-4 h-4 mr-2" />
                   Adicionar Primeiro Nó
                 </Button>
@@ -285,7 +378,7 @@ export default function MuralInvestigativo() {
 
                 {/* Nodes */}
                 {nodes.map((node) => (
-                  <g key={node.id} className="cursor-pointer hover:opacity-80">
+                  <g key={node.id} className="cursor-pointer hover:opacity-80" onClick={() => handleNodeClick(node.id)}>
                     <rect
                       x={node.x - 60}
                       y={node.y - 25}
@@ -293,9 +386,9 @@ export default function MuralInvestigativo() {
                       height="50"
                       rx="8"
                       fill={node.color}
-                      fillOpacity="0.2"
+                      fillOpacity={selectedNodeForConnection === node.id ? "0.4" : "0.2"}
                       stroke={node.color}
-                      strokeWidth="2"
+                      strokeWidth={selectedNodeForConnection === node.id ? "3" : "2"}
                       className="hover:fill-opacity-30 transition-all"
                     />
                     <text

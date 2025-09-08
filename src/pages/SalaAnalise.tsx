@@ -92,27 +92,69 @@ export default function SalaAnalise() {
         fileSize: selectedFile.size
       };
 
-      // Submit to both APIs
+      // Submit to both APIs and fetch results
       try {
         const hybridSubmission = await analysisService.submitToHybridAnalysis(selectedFile);
         results.hybridAnalysis = hybridSubmission;
+        
+        // Wait and fetch results
+        setTimeout(async () => {
+          try {
+            const report = await analysisService.getHybridAnalysisReport(hybridSubmission.job_id);
+            results.hybridAnalysis = { ...hybridSubmission, report };
+            setAnalysisResult({ ...results });
+            DataManager.saveAnalysisResult(results);
+            setSavedResults(DataManager.getSavedResults());
+          } catch (err) {
+            console.warn('Failed to fetch Hybrid Analysis report:', err);
+          }
+        }, 10000); // Wait 10 seconds for analysis
+        
         toast({
           title: "Hybrid Analysis",
-          description: "Arquivo enviado com sucesso!",
+          description: "Arquivo enviado com sucesso! Resultados chegando em breve.",
         });
       } catch (error) {
         console.warn('Hybrid Analysis failed:', error);
+        toast({
+          title: "Aviso",
+          description: "Hybrid Analysis falhou - verifique sua API key",
+          variant: "destructive"
+        });
       }
 
       try {
         const vtSubmission = await analysisService.submitToVirusTotal(selectedFile);
         results.virusTotal = vtSubmission;
+        
+        // Wait and fetch results
+        setTimeout(async () => {
+          try {
+            const report = await analysisService.getVirusTotalReport(vtSubmission.data.id);
+            results.virusTotal = { 
+              ...vtSubmission, 
+              stats: report.data.attributes.last_analysis_stats,
+              results: report.data.attributes.last_analysis_results 
+            };
+            setAnalysisResult({ ...results });
+            DataManager.saveAnalysisResult(results);
+            setSavedResults(DataManager.getSavedResults());
+          } catch (err) {
+            console.warn('Failed to fetch VirusTotal report:', err);
+          }
+        }, 15000); // Wait 15 seconds for analysis
+        
         toast({
           title: "VirusTotal", 
-          description: "Arquivo enviado com sucesso!",
+          description: "Arquivo enviado com sucesso! Resultados chegando em breve.",
         });
       } catch (error) {
         console.warn('VirusTotal failed:', error);
+        toast({
+          title: "Aviso",
+          description: "VirusTotal falhou - verifique sua API key",
+          variant: "destructive"
+        });
       }
 
       clearInterval(progressInterval);
