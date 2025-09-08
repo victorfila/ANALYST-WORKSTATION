@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Plus, Save, Download, Move, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataManager } from "@/utils/dataManager";
 
 interface Node {
   id: string;
@@ -18,36 +19,116 @@ interface Connection {
   label: string;
 }
 
-const initialNodes: Node[] = [
-  { id: "youtube1", label: "YouTube 70%\nInscrito", type: "source", x: 50, y: 300, color: "#ef4444" },
-  { id: "monetizacao", label: "Monetização\nClickbait", type: "info", x: 200, y: 400, color: "#22c55e" },
-  { id: "zip", label: "ZIP Protegido\nSenha: cheat123", type: "file", x: 500, y: 250, color: "#8b5cf6" },
-  { id: "js-obfuscated", label: "Javascript\nOfuscado (3\nCamadas)", type: "threat", x: 750, y: 200, color: "#8b5cf6" },
-  { id: "bytes", label: "Bytes\nrecolocados antes", type: "analysis", x: 450, y: 350, color: "#8b5cf6" },
-  { id: "cheat-yt2", label: "CASE-002 Cheat\nYouTube 2", type: "case", x: 600, y: 320, color: "#ef4444" },
-  { id: "token", label: "Token de\ncredencial\nextraído", type: "evidence", x: 600, y: 500, color: "#06b6d4" },
-  { id: "rhadamanthys", label: "Rhadamanthys\nInfo Stealer", type: "malware", x: 800, y: 650, color: "#ef4444" },
-  { id: "anti-debug", label: "Anti-\ndesofuscação ativa", type: "protection", x: 1000, y: 400, color: "#8b5cf6" }
-];
-
-const initialConnections: Connection[] = [
-  { from: "youtube1", to: "monetizacao", label: "clickbait" },
-  { from: "monetizacao", to: "zip", label: "download" }, 
-  { from: "zip", to: "js-obfuscated", label: "extração" },
-  { from: "js-obfuscated", to: "bytes", label: "relaciona a" },
-  { from: "bytes", to: "cheat-yt2", label: "relaciona a" },
-  { from: "cheat-yt2", to: "token", label: "acesso para token da" },
-  { from: "token", to: "rhadamanthys", label: "dados payload" },
-  { from: "js-obfuscated", to: "anti-debug", label: "relaciona a" }
-];
-
 export default function MuralInvestigativo() {
-  const [nodes, setNodes] = useState<Node[]>(initialNodes);
-  const [connections] = useState<Connection[]>(initialConnections);
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedCase, setSelectedCase] = useState("case");
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Load real data and generate nodes/connections
+  useEffect(() => {
+    const savedResults = DataManager.getSavedResults();
+    
+    if (savedResults.length === 0) {
+      // Show empty state
+      setNodes([]);
+      setConnections([]);
+      return;
+    }
+
+    // Generate nodes from real analysis data
+    const generatedNodes: Node[] = [];
+    const generatedConnections: Connection[] = [];
+    
+    savedResults.forEach((result, index) => {
+      const baseY = 150 + (index * 120);
+      const caseId = `case-${index}`;
+      
+      // Main case node
+      generatedNodes.push({
+        id: caseId,
+        label: result.fileName?.split('.')[0] || `Caso ${index + 1}`,
+        type: "case",
+        x: 200,
+        y: baseY,
+        color: "#ef4444"
+      });
+
+      // Analysis nodes
+      if (result.hybridAnalysis) {
+        const hybridId = `hybrid-${index}`;
+        generatedNodes.push({
+          id: hybridId,
+          label: `Hybrid Analysis\nScore: ${result.hybridAnalysis.threat_score || 0}`,
+          type: "analysis",
+          x: 400,
+          y: baseY - 50,
+          color: "#8b5cf6"
+        });
+        
+        generatedConnections.push({
+          from: caseId,
+          to: hybridId,
+          label: "analisado por"
+        });
+      }
+
+      if (result.virusTotal) {
+        const vtId = `vt-${index}`;
+        const maliciousCount = result.virusTotal.stats?.malicious || 0;
+        generatedNodes.push({
+          id: vtId,
+          label: `VirusTotal\n${maliciousCount} detecções`,
+          type: "analysis", 
+          x: 400,
+          y: baseY + 50,
+          color: "#06b6d4"
+        });
+        
+        generatedConnections.push({
+          from: caseId,
+          to: vtId,
+          label: "verificado por"
+        });
+      }
+
+      // Threat level node
+      const threatLevel = getThreatLevel(result);
+      if (threatLevel !== "Nível 0") {
+        const threatId = `threat-${index}`;
+        generatedNodes.push({
+          id: threatId,
+          label: `Ameaça\n${threatLevel}`,
+          type: threatLevel.includes("5") ? "malware" : "evidence",
+          x: 600,
+          y: baseY,
+          color: threatLevel.includes("5") ? "#ef4444" : "#22c55e"
+        });
+        
+        generatedConnections.push({
+          from: caseId,
+          to: threatId,
+          label: "classificado como"
+        });
+      }
+    });
+
+    setNodes(generatedNodes);
+    setConnections(generatedConnections);
+  }, []);
+
+  const getThreatLevel = (result: any) => {
+    if (!result.hybridAnalysis && !result.virusTotal) return "Nível 0";
+    
+    const hybridThreat = result.hybridAnalysis?.threat_score || 0;
+    const vtMalicious = result.virusTotal?.stats?.malicious || 0;
+    
+    if (hybridThreat > 70 || vtMalicious > 5) return "Nível 5";
+    if (hybridThreat > 30 || vtMalicious > 0) return "Nível 3";
+    return "Nível 1";
+  };
 
   const getNodeColor = (type: string) => {
     switch (type) {
@@ -109,117 +190,133 @@ export default function MuralInvestigativo() {
 
         {/* Graph Canvas */}
         <div className="card-cyber p-4 rounded-lg relative" style={{ height: "600px" }}>
-          <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))}
-              className="border-border"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.5))}
-              className="border-border"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <svg
-            ref={svgRef}
-            className="w-full h-full overflow-visible"
-            style={{ 
-              transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
-              cursor: "grab"
-            }}
-          >
-            <defs>
-              <marker
-                id="arrowhead"
-                markerWidth="10"
-                markerHeight="7"
-                refX="10"
-                refY="3.5"
-                orient="auto"
-              >
-                <polygon
-                  points="0 0, 10 3.5, 0 7"
-                  fill="#06b6d4"
-                  opacity="0.8"
-                />
-              </marker>
-            </defs>
-
-            {/* Connections */}
-            {connections.map((conn, idx) => {
-              const fromNode = nodes.find(n => n.id === conn.from);
-              const toNode = nodes.find(n => n.id === conn.to);
-              if (!fromNode || !toNode) return null;
-
-              const midX = (fromNode.x + toNode.x) / 2;
-              const midY = (fromNode.y + toNode.y) / 2;
-
-              return (
-                <g key={idx}>
-                  <line
-                    x1={fromNode.x}
-                    y1={fromNode.y}
-                    x2={toNode.x}
-                    y2={toNode.y}
-                    stroke="#06b6d4"
-                    strokeWidth="2"
-                    opacity="0.6"
-                    markerEnd="url(#arrowhead)"
-                  />
-                  <text
-                    x={midX}
-                    y={midY - 10}
-                    fill="#06b6d4"
-                    fontSize="10"
-                    textAnchor="middle"
-                    className="text-xs font-mono"
-                  >
-                    {conn.label}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Nodes */}
-            {nodes.map((node) => (
-              <g key={node.id} className="cursor-pointer hover:opacity-80">
-                <rect
-                  x={node.x - 60}
-                  y={node.y - 25}
-                  width="120"
-                  height="50"
-                  rx="8"
-                  fill={node.color}
-                  fillOpacity="0.2"
-                  stroke={node.color}
-                  strokeWidth="2"
-                  className="hover:fill-opacity-30 transition-all"
-                />
-                <text
-                  x={node.x}
-                  y={node.y}
-                  fill={node.color}
-                  fontSize="11"
-                  textAnchor="middle"
-                  className="font-medium pointer-events-none"
+          {nodes.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="text-6xl text-muted-foreground mb-4">🕸️</div>
+                <h3 className="text-xl font-semibold text-muted-foreground mb-2">Mural Vazio</h3>
+                <p className="text-sm text-muted-foreground mb-4">Execute análises para ver conexões entre ameaças</p>
+                <Button variant="outline" className="border-border">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Primeiro Nó
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))}
+                  className="border-border"
                 >
-                  {node.label.split('\n').map((line, idx) => (
-                    <tspan key={idx} x={node.x} dy={idx === 0 ? 0 : 12}>
-                      {line}
-                    </tspan>
-                  ))}
-                </text>
-              </g>
-            ))}
-          </svg>
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.5))}
+                  className="border-border"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <svg
+                ref={svgRef}
+                className="w-full h-full overflow-visible"
+                style={{ 
+                  transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+                  cursor: "grab"
+                }}
+              >
+                <defs>
+                  <marker
+                    id="arrowhead"
+                    markerWidth="10"
+                    markerHeight="7"
+                    refX="10"
+                    refY="3.5"
+                    orient="auto"
+                  >
+                    <polygon
+                      points="0 0, 10 3.5, 0 7"
+                      fill="#06b6d4"
+                      opacity="0.8"
+                    />
+                  </marker>
+                </defs>
+
+                {/* Connections */}
+                {connections.map((conn, idx) => {
+                  const fromNode = nodes.find(n => n.id === conn.from);
+                  const toNode = nodes.find(n => n.id === conn.to);
+                  if (!fromNode || !toNode) return null;
+
+                  const midX = (fromNode.x + toNode.x) / 2;
+                  const midY = (fromNode.y + toNode.y) / 2;
+
+                  return (
+                    <g key={idx}>
+                      <line
+                        x1={fromNode.x}
+                        y1={fromNode.y}
+                        x2={toNode.x}
+                        y2={toNode.y}
+                        stroke="#06b6d4"
+                        strokeWidth="2"
+                        opacity="0.6"
+                        markerEnd="url(#arrowhead)"
+                      />
+                      <text
+                        x={midX}
+                        y={midY - 10}
+                        fill="#06b6d4"
+                        fontSize="10"
+                        textAnchor="middle"
+                        className="text-xs font-mono"
+                      >
+                        {conn.label}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Nodes */}
+                {nodes.map((node) => (
+                  <g key={node.id} className="cursor-pointer hover:opacity-80">
+                    <rect
+                      x={node.x - 60}
+                      y={node.y - 25}
+                      width="120"
+                      height="50"
+                      rx="8"
+                      fill={node.color}
+                      fillOpacity="0.2"
+                      stroke={node.color}
+                      strokeWidth="2"
+                      className="hover:fill-opacity-30 transition-all"
+                    />
+                    <text
+                      x={node.x}
+                      y={node.y}
+                      fill={node.color}
+                      fontSize="11"
+                      textAnchor="middle"
+                      className="font-medium pointer-events-none"
+                    >
+                      {node.label.split('\n').map((line, idx) => (
+                        <tspan key={idx} x={node.x} dy={idx === 0 ? 0 : 12}>
+                          {line}
+                        </tspan>
+                      ))}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            </>
+          )}
         </div>
 
         {/* Legend */}

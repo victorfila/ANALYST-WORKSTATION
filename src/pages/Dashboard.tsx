@@ -96,14 +96,16 @@ export default function Dashboard() {
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-neon-red">Limpar Todo o Sistema</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação irá remover permanentemente:
-                      <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>Todas as API keys salvas</li>
-                        <li>Histórico de análises</li>
-                        <li>Notas e relatórios</li>
-                        <li>Configurações do painel</li>
-                      </ul>
-                      <p className="mt-2 text-neon-orange">Esta ação não pode ser desfeita!</p>
+                      <div>
+                        Esta ação irá remover permanentemente:
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                          <li>Todas as API keys salvas</li>
+                          <li>Histórico de análises</li>
+                          <li>Notas e relatórios</li>
+                          <li>Configurações do painel</li>
+                        </ul>
+                        <div className="mt-2 text-neon-orange">Esta ação não pode ser desfeita!</div>
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
