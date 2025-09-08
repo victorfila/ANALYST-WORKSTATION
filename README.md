@@ -7,6 +7,7 @@
 🧠 ANALYST WORKSTATION
 Uma estação de trabalho tudo-em-um para analistas de dados, BI e quem trabalha com IA.
 
+
 Pense nisso como o “canivete suíço” do analista:
 ✔️ Escreve SQL com ajuda de IA
 ✔️ Mostra gráficos e dashboards
@@ -17,9 +18,13 @@ Pense nisso como o “canivete suíço” do analista:
 🚀 Como testar
 
 git clone https://github.com/victorfila/ANALYST-WORKSTATION.git
+
 cd ANALYST-WORKSTATION
+
 npm install
+
 npm run dev
+
 Abra no navegador: http://localhost:3000
 
 💡 Por que usar?
