@@ -90,13 +90,17 @@ export class DataManager {
 
   // Clear all app data
   static clearAllData() {
+    console.log('DataManager: Clearing all data...');
+    console.log('DataManager: Before clear - localStorage keys:', Object.keys(localStorage));
+    
     // Clear all localStorage data
     localStorage.clear();
     
     // Also clear sessionStorage for complete reset
     sessionStorage.clear();
     
-    console.log('All data cleared from localStorage and sessionStorage');
+    console.log('DataManager: After clear - localStorage keys:', Object.keys(localStorage));
+    console.log('DataManager: All data cleared from localStorage and sessionStorage');
   }
 
   // Save analysis result with validation

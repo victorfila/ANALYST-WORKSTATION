@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Plus, Save, Download, Move, ZoomIn, ZoomOut } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Plus, Save, Download, Move, ZoomIn, ZoomOut, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataManager } from "@/utils/dataManager";
@@ -30,14 +30,19 @@ export default function MuralInvestigativo() {
   const [newNodeType, setNewNodeType] = useState("info");
   const [selectedNodeForConnection, setSelectedNodeForConnection] = useState<string | null>(null);
   const [connectionLabel, setConnectionLabel] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Load real data and generate nodes/connections
   useEffect(() => {
+    console.log('MuralInvestigativo: Loading data...');
     const savedResults = DataManager.getSavedResults();
+    console.log('MuralInvestigativo: Saved results:', savedResults);
     
     if (savedResults.length === 0) {
-      // Show empty state
+      console.log('MuralInvestigativo: No saved results, showing empty state');
       setNodes([]);
       setConnections([]);
       return;
@@ -156,17 +161,93 @@ export default function MuralInvestigativo() {
   };
 
   const handleNodeClick = (nodeId: string) => {
+    if (isDragging) return; // Don't trigger click if dragging
+    
     if (selectedNodeForConnection && selectedNodeForConnection !== nodeId) {
-      addConnection(selectedNodeForConnection, nodeId);
+      if (connectionLabel.trim()) {
+        addConnection(selectedNodeForConnection, nodeId);
+      } else {
+        // Auto-generate connection label
+        const fromNode = nodes.find(n => n.id === selectedNodeForConnection);
+        const toNode = nodes.find(n => n.id === nodeId);
+        if (fromNode && toNode) {
+          setConnectionLabel(`${fromNode.label.split('\n')[0]} → ${toNode.label.split('\n')[0]}`);
+          addConnection(selectedNodeForConnection, nodeId);
+        }
+      }
     } else {
       setSelectedNodeForConnection(nodeId);
     }
   };
 
   const clearMural = () => {
+    console.log('MuralInvestigativo: Clearing mural');
     setNodes([]);
     setConnections([]);
     setSelectedNodeForConnection(null);
+  };
+
+  // Mouse event handlers for drag and drop
+  const handleMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
+    if (e.button !== 0) return; // Only left click
+    
+    const svgElement = svgRef.current;
+    if (!svgElement) return;
+
+    const svgRect = svgElement.getBoundingClientRect();
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const mouseX = (e.clientX - svgRect.left) / zoom - pan.x;
+    const mouseY = (e.clientY - svgRect.top) / zoom - pan.y;
+
+    setDragOffset({
+      x: mouseX - node.x,
+      y: mouseY - node.y
+    });
+
+    setDraggedNode(nodeId);
+    setIsDragging(true);
+    e.preventDefault();
+    e.stopPropagation();
+  }, [nodes, zoom, pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !draggedNode) return;
+
+    const svgElement = svgRef.current;
+    if (!svgElement) return;
+
+    const svgRect = svgElement.getBoundingClientRect();
+    const mouseX = (e.clientX - svgRect.left) / zoom - pan.x;
+    const mouseY = (e.clientY - svgRect.top) / zoom - pan.y;
+
+    setNodes(prev => prev.map(node => 
+      node.id === draggedNode 
+        ? { 
+            ...node, 
+            x: mouseX - dragOffset.x, 
+            y: mouseY - dragOffset.y 
+          }
+        : node
+    ));
+  }, [isDragging, draggedNode, zoom, pan, dragOffset]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setDraggedNode(null);
+  }, []);
+
+  const deleteNode = (nodeId: string) => {
+    setNodes(prev => prev.filter(n => n.id !== nodeId));
+    setConnections(prev => prev.filter(c => c.from !== nodeId && c.to !== nodeId));
+    if (selectedNodeForConnection === nodeId) {
+      setSelectedNodeForConnection(null);
+    }
+  };
+
+  const deleteConnection = (fromId: string, toId: string) => {
+    setConnections(prev => prev.filter(c => !(c.from === fromId && c.to === toId)));
   };
 
   const getThreatLevel = (result: any) => {
@@ -321,8 +402,11 @@ export default function MuralInvestigativo() {
                 className="w-full h-full overflow-visible"
                 style={{ 
                   transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
-                  cursor: "grab"
+                  cursor: isDragging ? "grabbing" : "grab"
                 }}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
               >
                 <defs>
                   <marker
@@ -361,6 +445,7 @@ export default function MuralInvestigativo() {
                         strokeWidth="2"
                         opacity="0.6"
                         markerEnd="url(#arrowhead)"
+                        className="hover:opacity-100 cursor-pointer"
                       />
                       <text
                         x={midX}
@@ -368,7 +453,8 @@ export default function MuralInvestigativo() {
                         fill="#06b6d4"
                         fontSize="10"
                         textAnchor="middle"
-                        className="text-xs font-mono"
+                        className="text-xs font-mono cursor-pointer hover:fill-red-400"
+                        onClick={() => deleteConnection(conn.from, conn.to)}
                       >
                         {conn.label}
                       </text>
@@ -378,7 +464,7 @@ export default function MuralInvestigativo() {
 
                 {/* Nodes */}
                 {nodes.map((node) => (
-                  <g key={node.id} className="cursor-pointer hover:opacity-80" onClick={() => handleNodeClick(node.id)}>
+                  <g key={node.id} className="cursor-pointer hover:opacity-80">
                     <rect
                       x={node.x - 60}
                       y={node.y - 25}
@@ -390,6 +476,9 @@ export default function MuralInvestigativo() {
                       stroke={node.color}
                       strokeWidth={selectedNodeForConnection === node.id ? "3" : "2"}
                       className="hover:fill-opacity-30 transition-all"
+                      style={{ cursor: isDragging && draggedNode === node.id ? "grabbing" : "grab" }}
+                      onMouseDown={(e) => handleMouseDown(e, node.id)}
+                      onClick={() => handleNodeClick(node.id)}
                     />
                     <text
                       x={node.x}
@@ -397,7 +486,7 @@ export default function MuralInvestigativo() {
                       fill={node.color}
                       fontSize="11"
                       textAnchor="middle"
-                      className="font-medium pointer-events-none"
+                      className="font-medium pointer-events-none select-none"
                     >
                       {node.label.split('\n').map((line, idx) => (
                         <tspan key={idx} x={node.x} dy={idx === 0 ? 0 : 12}>
@@ -405,6 +494,32 @@ export default function MuralInvestigativo() {
                         </tspan>
                       ))}
                     </text>
+                    {/* Delete button for manual nodes */}
+                    {node.id.startsWith('manual-') && (
+                      <circle
+                        cx={node.x + 50}
+                        cy={node.y - 20}
+                        r="8"
+                        fill="#ef4444"
+                        className="cursor-pointer hover:fill-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNode(node.id);
+                        }}
+                      />
+                    )}
+                    {node.id.startsWith('manual-') && (
+                      <text
+                        x={node.x + 50}
+                        y={node.y - 17}
+                        fill="white"
+                        fontSize="10"
+                        textAnchor="middle"
+                        className="pointer-events-none select-none font-bold"
+                      >
+                        ×
+                      </text>
+                    )}
                   </g>
                 ))}
               </svg>
