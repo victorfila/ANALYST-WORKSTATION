@@ -1,73 +1,37 @@
-# Welcome to your Lovable project
+# ANALYST-WORKSTATION
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/76c6cf92-37ae-4bc6-9cdc-e1ccb170ccd1
 
-## How can I edit this code?
+🧠 ANALYST WORKSTATION
+Uma estação de trabalho tudo-em-um para analistas de dados, BI e quem trabalha com IA.
 
-There are several ways of editing your application.
+Pense nisso como o “canivete suíço” do analista:
+✔️ Escreve SQL com ajuda de IA
+✔️ Mostra gráficos e dashboards
+✔️ Documenta tabelas automaticamente
+✔️ Conecta em vários bancos (BigQuery, PostgreSQL, etc)
+✔️ Exporta resultados com um clique
 
-**Use Lovable**
+🚀 Como testar
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/76c6cf92-37ae-4bc6-9cdc-e1ccb170ccd1) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+git clone https://github.com/victorfila/ANALYST-WORKSTATION.git
+cd ANALYST-WORKSTATION
+npm install
 npm run dev
-```
+Abra no navegador: http://localhost:3000
 
-**Edit a file directly in GitHub**
+💡 Por que usar?
+Tudo junto: dados, IA, visualização e documentação.
+Feito por analista, para analista.
+Open-source e fácil de customizar.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/76c6cf92-37ae-4bc6-9cdc-e1ccb170ccd1) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+🛠️ Tecnologias Utilizadas
+Frontend: React + TypeScript + TailwindCSS + ShadCN UI
+Backend: Node.js + Express (ou Next.js API Routes)
+Banco de Dados: PostgreSQL / SQLite (para metadados)
+IA: OpenAI API / Local LLM (opcional)
+Autenticação: Supabase Auth / Clerk
+Deploy: Vercel / Railway
+Armazenamento: Supabase Storage / AWS S3
