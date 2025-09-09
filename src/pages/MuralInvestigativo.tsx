@@ -3,6 +3,7 @@ import { Plus, Save, Download, Move, ZoomIn, ZoomOut, Trash2 } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataManager } from "@/utils/dataManager";
+import { useToast } from "@/hooks/use-toast";
 
 interface Node {
   id: string;
@@ -34,10 +35,28 @@ export default function MuralInvestigativo() {
   const [draggedNode, setDraggedNode] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
+  const { toast } = useToast();
 
   // Load real data and generate nodes/connections
   useEffect(() => {
     console.log('MuralInvestigativo: Loading data...');
+    
+    // First try to load saved mural state
+    const savedNodes = localStorage.getItem('muralNodes');
+    const savedConnections = localStorage.getItem('muralConnections');
+    
+    if (savedNodes && savedConnections) {
+      try {
+        setNodes(JSON.parse(savedNodes));
+        setConnections(JSON.parse(savedConnections));
+        console.log('MuralInvestigativo: Loaded saved mural state');
+        return;
+      } catch (error) {
+        console.error('Failed to load saved mural state:', error);
+      }
+    }
+    
+    // If no saved state, generate from analysis results
     const savedResults = DataManager.getSavedResults();
     console.log('MuralInvestigativo: Saved results:', savedResults);
     
@@ -129,6 +148,49 @@ export default function MuralInvestigativo() {
     setConnections(generatedConnections);
   }, []);
 
+  // Save mural state to localStorage whenever nodes or connections change
+  useEffect(() => {
+    if (nodes.length > 0 || connections.length > 0) {
+      localStorage.setItem('muralNodes', JSON.stringify(nodes));
+      localStorage.setItem('muralConnections', JSON.stringify(connections));
+    }
+  }, [nodes, connections]);
+
+  const saveMural = () => {
+    localStorage.setItem('muralNodes', JSON.stringify(nodes));
+    localStorage.setItem('muralConnections', JSON.stringify(connections));
+    toast({
+      title: "Mural Salvo",
+      description: "Estado do mural salvo com sucesso.",
+    });
+  };
+
+  const exportMural = () => {
+    const muralData = {
+      nodes,
+      connections,
+      timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(muralData, null, 2)], { 
+      type: 'application/json' 
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mural-investigativo-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Mural Exportado",
+      description: "Dados do mural baixados com sucesso.",
+    });
+  };
+
   const addNode = () => {
     if (!newNodeLabel.trim()) return;
     
@@ -147,36 +209,59 @@ export default function MuralInvestigativo() {
   };
 
   const addConnection = (fromId: string, toId: string) => {
-    if (!connectionLabel.trim()) return;
+    // Check if connection already exists
+    const existingConnection = connections.find(c => 
+      (c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId)
+    );
+    
+    if (existingConnection) {
+      toast({
+        title: "Conexão já existe",
+        description: "Uma conexão entre esses nós já foi criada.",
+        variant: "destructive"
+      });
+      setSelectedNodeForConnection(null);
+      return;
+    }
+    
+    const label = connectionLabel.trim() || "conectado a";
     
     const newConnection: Connection = {
       from: fromId,
       to: toId,
-      label: connectionLabel
+      label: label
     };
     
     setConnections(prev => [...prev, newConnection]);
     setConnectionLabel("");
     setSelectedNodeForConnection(null);
+    
+    toast({
+      title: "Conexão criada",
+      description: `Nova conexão: ${label}`,
+    });
   };
 
   const handleNodeClick = (nodeId: string) => {
     if (isDragging) return; // Don't trigger click if dragging
     
     if (selectedNodeForConnection && selectedNodeForConnection !== nodeId) {
-      if (connectionLabel.trim()) {
-        addConnection(selectedNodeForConnection, nodeId);
-      } else {
-        // Auto-generate connection label
+      // Auto-generate connection label if empty
+      if (!connectionLabel.trim()) {
         const fromNode = nodes.find(n => n.id === selectedNodeForConnection);
         const toNode = nodes.find(n => n.id === nodeId);
         if (fromNode && toNode) {
-          setConnectionLabel(`${fromNode.label.split('\n')[0]} → ${toNode.label.split('\n')[0]}`);
-          addConnection(selectedNodeForConnection, nodeId);
+          setConnectionLabel("relacionado com");
         }
       }
+      addConnection(selectedNodeForConnection, nodeId);
     } else {
+      // Select node for connection
       setSelectedNodeForConnection(nodeId);
+      toast({
+        title: "Nó selecionado",
+        description: "Clique em outro nó para criar uma conexão",
+      });
     }
   };
 
@@ -185,6 +270,15 @@ export default function MuralInvestigativo() {
     setNodes([]);
     setConnections([]);
     setSelectedNodeForConnection(null);
+    
+    // Also clear from localStorage
+    localStorage.removeItem('muralNodes');
+    localStorage.removeItem('muralConnections');
+    
+    toast({
+      title: "Mural Limpo",
+      description: "Todos os nós e conexões foram removidos.",
+    });
   };
 
   // Mouse event handlers for drag and drop
@@ -347,11 +441,11 @@ export default function MuralInvestigativo() {
             </div>
             
             <div className="flex items-center space-x-2">
-              <Button size="sm" variant="outline" className="border-border">
+              <Button size="sm" variant="outline" onClick={saveMural} className="border-border">
                 <Save className="w-4 h-4 mr-2" />
                 Salvar
               </Button>
-              <Button size="sm" variant="outline" className="border-border">
+              <Button size="sm" variant="outline" onClick={exportMural} className="border-border">
                 <Download className="w-4 h-4 mr-2" />
                 Exportar
               </Button>

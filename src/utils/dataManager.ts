@@ -88,7 +88,7 @@ export class DataManager {
     URL.revokeObjectURL(url);
   }
 
-  // Clear all app data
+  // Update clearAllData to also clear mural state
   static clearAllData() {
     console.log('DataManager: Clearing all data...');
     console.log('DataManager: Before clear - localStorage keys:', Object.keys(localStorage));
