@@ -31,117 +31,156 @@ export interface VirusTotalResult {
 }
 
 class AnalysisService {
-  private hybridAnalysisKey: string = '';
-  private virusTotalKey: string = '';
+  private supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
-  setApiKeys(hybridKey: string, vtKey: string) {
-    this.hybridAnalysisKey = hybridKey;
-    this.virusTotalKey = vtKey;
+  private async fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix to get pure base64
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = error => reject(error);
+    });
   }
 
   async submitToHybridAnalysis(file: File): Promise<HybridAnalysisResult> {
-    if (!this.hybridAnalysisKey) {
-      throw new Error('Hybrid Analysis API key não configurada');
+    try {
+      const base64Data = await this.fileToBase64(file);
+      
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/hybrid-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'submit',
+          file: {
+            name: file.name,
+            type: file.type,
+            data: base64Data
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Hybrid Analysis submission failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Hybrid Analysis error:', error);
+      throw new Error('Falha ao enviar arquivo para Hybrid Analysis');
     }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('environment_id', '120'); // Windows 10 64-bit
-
-    const response = await fetch('https://www.hybrid-analysis.com/api/v2/submit/file', {
-      method: 'POST',
-      headers: {
-        'api-key': this.hybridAnalysisKey,
-        'User-Agent': 'Falcon Sandbox'
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Hybrid Analysis error: ${error}`);
-    }
-
-    return response.json();
   }
 
   async getHybridAnalysisReport(jobId: string): Promise<any> {
-    if (!this.hybridAnalysisKey) {
-      throw new Error('Hybrid Analysis API key não configurada');
-    }
+    try {
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/hybrid-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'report',
+          jobId: jobId
+        })
+      });
 
-    const response = await fetch(`https://www.hybrid-analysis.com/api/v2/report/${jobId}/summary`, {
-      headers: {
-        'api-key': this.hybridAnalysisKey,
-        'User-Agent': 'Falcon Sandbox'
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get Hybrid Analysis report');
       }
-    });
 
-    if (!response.ok) {
+      return response.json();
+    } catch (error) {
+      console.error('Hybrid Analysis report error:', error);
       throw new Error('Falha ao obter relatório do Hybrid Analysis');
     }
-
-    return response.json();
   }
 
   async submitToVirusTotal(file: File): Promise<any> {
-    if (!this.virusTotalKey) {
-      throw new Error('VirusTotal API key não configurada');
+    try {
+      const base64Data = await this.fileToBase64(file);
+      
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/virustotal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'submit',
+          file: {
+            name: file.name,
+            type: file.type,
+            data: base64Data
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'VirusTotal submission failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('VirusTotal error:', error);
+      throw new Error('Falha ao enviar arquivo para VirusTotal');
     }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch('https://www.virustotal.com/api/v3/files', {
-      method: 'POST',
-      headers: {
-        'X-Apikey': this.virusTotalKey
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`VirusTotal error: ${error}`);
-    }
-
-    return response.json();
   }
 
   async getVirusTotalReport(resourceId: string): Promise<VirusTotalResult> {
-    if (!this.virusTotalKey) {
-      throw new Error('VirusTotal API key não configurada');
-    }
+    try {
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/virustotal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'report',
+          resourceId: resourceId
+        })
+      });
 
-    const response = await fetch(`https://www.virustotal.com/api/v3/analyses/${resourceId}`, {
-      headers: {
-        'X-Apikey': this.virusTotalKey
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get VirusTotal report');
       }
-    });
 
-    if (!response.ok) {
+      return response.json();
+    } catch (error) {
+      console.error('VirusTotal report error:', error);
       throw new Error('Falha ao obter relatório do VirusTotal');
     }
-
-    return response.json();
   }
 
   async getFileReportByHash(hash: string): Promise<VirusTotalResult> {
-    if (!this.virusTotalKey) {
-      throw new Error('VirusTotal API key não configurada');
-    }
+    try {
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/virustotal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'hash-report',
+          hash: hash
+        })
+      });
 
-    const response = await fetch(`https://www.virustotal.com/api/v3/files/${hash}`, {
-      headers: {
-        'X-Apikey': this.virusTotalKey
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Hash not found in VirusTotal');
       }
-    });
 
-    if (!response.ok) {
+      return response.json();
+    } catch (error) {
+      console.error('VirusTotal hash report error:', error);
       throw new Error('Hash não encontrado no VirusTotal');
     }
-
-    return response.json();
   }
 }
 

@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import ApiKeyManager from "@/components/analysis/ApiKeyManager";
 import { analysisService } from "@/services/analysisService";
 import { DataManager, ExportOptions } from "@/utils/dataManager";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -34,12 +33,8 @@ export default function SalaAnalise() {
   useEffect(() => {
     setSavedResults(DataManager.getSavedResults());
     setUserNotes(DataManager.getNotes());
+    setApiKeysConfigured(true); // API keys are managed through Supabase
   }, []);
-
-  const handleApiKeysUpdate = (keys: { hybridAnalysis: string; virusTotal: string }) => {
-    analysisService.setApiKeys(keys.hybridAnalysis, keys.virusTotal);
-    setApiKeysConfigured(!!keys.hybridAnalysis || !!keys.virusTotal);
-  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -63,14 +58,7 @@ export default function SalaAnalise() {
       return;
     }
 
-    if (!apiKeysConfigured) {
-      toast({
-        title: "Erro", 
-        description: "Configure pelo menos uma API key para continuar",
-        variant: "destructive"
-      });
-      return;
-    }
+    // API keys are now managed in Supabase Edge Functions
 
     setIsAnalyzing(true);
     setProgress(0);
@@ -296,7 +284,7 @@ export default function SalaAnalise() {
     // Reset component state completely
     setSelectedFile(null);
     setAnalysisResult(null);
-    setApiKeysConfigured(false);
+    setApiKeysConfigured(true);
     setSavedResults([]);
     setUserNotes("");
     setProgress(0);
@@ -307,8 +295,7 @@ export default function SalaAnalise() {
       fileInputRef.current.value = '';
     }
     
-    // Clear API keys from state and service
-    analysisService.setApiKeys('', '');
+    // API keys are now managed in Supabase Edge Functions
     
     toast({
       title: "Dados Limpos",
@@ -418,11 +405,9 @@ export default function SalaAnalise() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              
-              <ApiKeyManager onKeysUpdate={handleApiKeysUpdate} />
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Analysis Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
