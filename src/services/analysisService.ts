@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js'
+
 // Hybrid Analysis API Service
 export interface HybridAnalysisResult {
   job_id: string;
@@ -31,7 +33,10 @@ export interface VirusTotalResult {
 }
 
 class AnalysisService {
-  private supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  private supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL || '',
+    import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+  );
 
   private async fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -48,54 +53,47 @@ class AnalysisService {
 
   async submitToHybridAnalysis(file: File): Promise<HybridAnalysisResult> {
     try {
+      console.log('🔄 Enviando arquivo para Hybrid Analysis...', file.name);
       const base64Data = await this.fileToBase64(file);
       
-      const response = await fetch(`${this.supabaseUrl}/functions/v1/hybrid-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await this.supabase.functions.invoke('hybrid-analysis', {
+        body: {
           action: 'submit',
           file: {
             name: file.name,
             type: file.type,
             data: base64Data
           }
-        })
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Hybrid Analysis submission failed');
+      if (error) {
+        console.error('❌ Erro Hybrid Analysis:', error);
+        throw new Error(error.message || 'Hybrid Analysis submission failed');
       }
 
-      return response.json();
+      console.log('✅ Arquivo enviado para Hybrid Analysis com sucesso:', data);
+      return data;
     } catch (error) {
-      console.error('Hybrid Analysis error:', error);
+      console.error('❌ Hybrid Analysis error:', error);
       throw new Error('Falha ao enviar arquivo para Hybrid Analysis');
     }
   }
 
   async getHybridAnalysisReport(jobId: string): Promise<any> {
     try {
-      const response = await fetch(`${this.supabaseUrl}/functions/v1/hybrid-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await this.supabase.functions.invoke('hybrid-analysis', {
+        body: {
           action: 'report',
           jobId: jobId
-        })
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to get Hybrid Analysis report');
+      if (error) {
+        throw new Error(error.message || 'Failed to get Hybrid Analysis report');
       }
 
-      return response.json();
+      return data;
     } catch (error) {
       console.error('Hybrid Analysis report error:', error);
       throw new Error('Falha ao obter relatório do Hybrid Analysis');
@@ -104,54 +102,47 @@ class AnalysisService {
 
   async submitToVirusTotal(file: File): Promise<any> {
     try {
+      console.log('🔄 Enviando arquivo para VirusTotal...', file.name);
       const base64Data = await this.fileToBase64(file);
       
-      const response = await fetch(`${this.supabaseUrl}/functions/v1/virustotal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await this.supabase.functions.invoke('virustotal', {
+        body: {
           action: 'submit',
           file: {
             name: file.name,
             type: file.type,
             data: base64Data
           }
-        })
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'VirusTotal submission failed');
+      if (error) {
+        console.error('❌ Erro VirusTotal:', error);
+        throw new Error(error.message || 'VirusTotal submission failed');
       }
 
-      return response.json();
+      console.log('✅ Arquivo enviado para VirusTotal com sucesso:', data);
+      return data;
     } catch (error) {
-      console.error('VirusTotal error:', error);
+      console.error('❌ VirusTotal error:', error);
       throw new Error('Falha ao enviar arquivo para VirusTotal');
     }
   }
 
   async getVirusTotalReport(resourceId: string): Promise<VirusTotalResult> {
     try {
-      const response = await fetch(`${this.supabaseUrl}/functions/v1/virustotal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await this.supabase.functions.invoke('virustotal', {
+        body: {
           action: 'report',
           resourceId: resourceId
-        })
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to get VirusTotal report');
+      if (error) {
+        throw new Error(error.message || 'Failed to get VirusTotal report');
       }
 
-      return response.json();
+      return data;
     } catch (error) {
       console.error('VirusTotal report error:', error);
       throw new Error('Falha ao obter relatório do VirusTotal');
@@ -160,23 +151,18 @@ class AnalysisService {
 
   async getFileReportByHash(hash: string): Promise<VirusTotalResult> {
     try {
-      const response = await fetch(`${this.supabaseUrl}/functions/v1/virustotal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await this.supabase.functions.invoke('virustotal', {
+        body: {
           action: 'hash-report',
           hash: hash
-        })
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Hash not found in VirusTotal');
+      if (error) {
+        throw new Error(error.message || 'Hash not found in VirusTotal');
       }
 
-      return response.json();
+      return data;
     } catch (error) {
       console.error('VirusTotal hash report error:', error);
       throw new Error('Hash não encontrado no VirusTotal');

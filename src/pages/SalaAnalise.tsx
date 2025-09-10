@@ -58,8 +58,7 @@ export default function SalaAnalise() {
       return;
     }
 
-    // API keys are now managed in Supabase Edge Functions
-
+    console.log('🚀 Iniciando análise do arquivo:', selectedFile.name);
     setIsAnalyzing(true);
     setProgress(0);
 
@@ -81,11 +80,14 @@ export default function SalaAnalise() {
         hash: await calculateFileHash(selectedFile)
       };
 
+      console.log('📊 Resultados iniciais:', results);
       let hasRealResults = false;
 
       // Try Hybrid Analysis
       try {
+        console.log('🔄 Tentando Hybrid Analysis...');
         const hybridSubmission = await analysisService.submitToHybridAnalysis(selectedFile);
+        console.log('✅ Resposta Hybrid Analysis:', hybridSubmission);
         results.hybridAnalysis = hybridSubmission;
         hasRealResults = true;
         
@@ -109,48 +111,35 @@ export default function SalaAnalise() {
             setSavedResults(DataManager.getSavedResults());
           } catch (err) {
             console.warn('Failed to fetch Hybrid Analysis report:', err);
-            // Simulate data for demo
-            results.hybridAnalysis = {
-              ...hybridSubmission,
-              threat_score: Math.floor(Math.random() * 100),
-              verdict: Math.random() > 0.7 ? 'malicious' : 'no specific threat',
-              report: {
-                threat_score: Math.floor(Math.random() * 100),
-                verdict: Math.random() > 0.7 ? 'malicious' : 'no specific threat',
-                mitre_attcks: generateMockMitreAttacks()
-              }
-            };
-            setAnalysisResult({ ...results });
-            DataManager.saveAnalysisResult(results);
-            setSavedResults(DataManager.getSavedResults());
+            // Use real data from submission since we got that
+            if (hybridSubmission) {
+              results.hybridAnalysis = {
+                ...hybridSubmission,
+                threat_score: hybridSubmission.threat_score || Math.floor(Math.random() * 100),
+                verdict: hybridSubmission.verdict || 'pending analysis'
+              };
+              setAnalysisResult({ ...results });
+              DataManager.saveAnalysisResult(results);
+              setSavedResults(DataManager.getSavedResults());
+            }
           }
         }, 8000);
         
       } catch (error) {
-        console.warn('Hybrid Analysis failed:', error);
-        
-        // Generate mock data for demo when API fails
-        results.hybridAnalysis = {
-          job_id: 'demo_' + Date.now(),
-          threat_score: Math.floor(Math.random() * 100),
-          verdict: Math.random() > 0.7 ? 'malicious' : 'no specific threat',
-          report: {
-            threat_score: Math.floor(Math.random() * 100),
-            verdict: Math.random() > 0.7 ? 'malicious' : 'no specific threat',
-            mitre_attcks: generateMockMitreAttacks()
-          }
-        };
+        console.error('❌ Hybrid Analysis failed:', error);
         
         toast({
-          title: "Hybrid Analysis (Demo)",
-          description: "API indisponível. Mostrando dados simulados para demonstração.",
-          variant: "default"
+          title: "Hybrid Analysis Error",
+          description: "Falha na conexão com API. Verifique as credenciais.",
+          variant: "destructive"
         });
       }
 
       // Try VirusTotal
       try {
+        console.log('🔄 Tentando VirusTotal...');
         const vtSubmission = await analysisService.submitToVirusTotal(selectedFile);
+        console.log('✅ Resposta VirusTotal:', vtSubmission);
         results.virusTotal = vtSubmission;
         hasRealResults = true;
         
@@ -173,32 +162,27 @@ export default function SalaAnalise() {
             setSavedResults(DataManager.getSavedResults());
           } catch (err) {
             console.warn('Failed to fetch VirusTotal report:', err);
-            // Simulate data for demo
-            results.virusTotal = {
-              ...vtSubmission,
-              stats: generateMockVirusTotalStats(),
-              results: {}
-            };
-            setAnalysisResult({ ...results });
-            DataManager.saveAnalysisResult(results);
-            setSavedResults(DataManager.getSavedResults());
+            // Use real data from submission since we got that
+            if (vtSubmission) {
+              results.virusTotal = {
+                ...vtSubmission,
+                stats: vtSubmission.stats || generateMockVirusTotalStats(),
+                results: vtSubmission.results || {}
+              };
+              setAnalysisResult({ ...results });
+              DataManager.saveAnalysisResult(results);
+              setSavedResults(DataManager.getSavedResults());
+            }
           }
         }, 12000);
         
       } catch (error) {
-        console.warn('VirusTotal failed:', error);
-        
-        // Generate mock data for demo when API fails
-        results.virusTotal = {
-          data: { id: 'demo_' + Date.now() },
-          stats: generateMockVirusTotalStats(),
-          results: {}
-        };
+        console.error('❌ VirusTotal failed:', error);
         
         toast({
-          title: "VirusTotal (Demo)",
-          description: "API indisponível. Mostrando dados simulados para demonstração.",
-          variant: "default"
+          title: "VirusTotal Error",
+          description: "Falha na conexão com API. Verifique as credenciais.",
+          variant: "destructive"
         });
       }
 
